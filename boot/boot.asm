@@ -152,8 +152,10 @@ long_mode_start:
     ; --- Передаём magic и addr в rdi/rsi ---
     mov rdi, [magic64]
     mov rsi, [addr64]
+    cli
     call kernel_main
-    ;cli
+    cli
+    call .hang
 .hang:
     hlt
     jmp .hang 
