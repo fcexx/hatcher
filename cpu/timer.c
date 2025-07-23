@@ -51,3 +51,9 @@ void init_timer() {
 void enable_interrupts() {
     __asm__ volatile ("sti");
 }
+
+void wait(uint32_t ms) {
+    uint32_t start = timer_ticks;
+    while (timer_ticks - start < ms);
+    kprintf(""); // important!!!
+}

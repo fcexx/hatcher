@@ -46,9 +46,9 @@ clean:
 	@rm -rf $(OBJ_DIR) $(ISO_DIR)/boot/kernel.elf kernel.iso
 
 run:
-	@qemu-system-x86_64 -cdrom kernel.iso -m 2048M -hda ../hda.img -boot d
+	@qemu-system-x86_64 -cdrom kernel.iso -m 2048M -hda ../hda.img -boot d -audiodev sdl,id=pcspk_audio -machine pcspk-audiodev=pcspk_audio
 
 debug:
-	@qemu-system-x86_64 -cdrom kernel.iso -m 2048M -hda ../hda.img -boot d -s -S
+	@qemu-system-x86_64 -cdrom kernel.iso -m 2048M -hda ../hda.img -boot d -s -S -audiodev sdl,id=pcspk_audio -machine pcspk-audiodev=pcspk_audio
 
 .PHONY: all clean grub run 

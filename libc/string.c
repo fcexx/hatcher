@@ -129,3 +129,27 @@ void *memmove(void *dest, const void *src, size_t n) {
     }
     return dest;
 }
+
+char **split(const char *str, char delimiter, int *count) {
+    static char words_buf[64][64];
+    static char *result[64];
+
+    int n = 0;
+    const char *ptr = str;
+
+    while (*ptr && n < 64) {
+        while (*ptr == delimiter) ptr++;
+        if (!*ptr) break; // if end of string
+
+        char *dst = words_buf[n]; int len = 0;
+        while (*ptr && *ptr != delimiter && len < 63) {
+            dst[len++] = *ptr++;
+        }
+        dst[len] = 0;
+        result[n] = dst;
+        n++;
+    }
+
+    *count = n;
+    return result;
+}

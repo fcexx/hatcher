@@ -8,6 +8,7 @@ extern volatile uint32_t timer_tcks;
 void init_timer();
 void timer_handler();
 void set_pic_frequency(uint16_t hz);
-
+void wait(uint32_t ms);
 void timer_isr_wrapper(cpu_registers_t* regs);
+
 #endif

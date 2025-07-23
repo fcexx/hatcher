@@ -9,7 +9,8 @@
 #include <heap.h>
 #include <debug.h>
 #include <ps2.h>
-#include <timer.h> // Added for timer functions
+#include <timer.h>
+#include <pc_speaker.h>
 #include <pci.h>
 #include <ata.h>
 #include <usb.h>
@@ -21,18 +22,33 @@ void shell(void) {
     while (1) {
         kprintf("> ");
         char *buf = kgets();
-        if (strcmp(buf, "exit") == 0) {
-            break;
-        }
-        else if (strcmp(buf, "help") == 0) {
-            kprint("help command\n");
-        }
-        else if (strcmp(buf, "clear") == 0) {
-            kclear();
-        }
-        else if (strcmp(buf, "") == 0);
-        else {
-            kprintf("<(0C)>Incorrect command: %s<(07)>\n", buf);
+        int count = 0;
+        char **args = split(buf, ' ', &count);
+        if (count > 0)
+        {
+            if (strcmp(args[0], "exit") == 0) {
+                break;
+            }
+            else if (strcmp(args[0], "help") == 0) {
+                kprint("help command\n");
+            }
+            else if (strcmp(args[0], "clear") == 0) {
+                kclear();
+            }
+            else if (strcmp(args[0], "beep") == 0) {
+                if (count > 2)
+                {
+                    int freq = atoi(args[1]);
+                    int duration = atoi(args[2]);
+                    pc_speaker_beep(freq, duration);
+                }
+                else {
+                    kprintf("Usage: beep <frequency> <duration>\n");
+                }
+            }
+            else {
+                kprintf("<(0C)>Incorrect command: %s<(07)>\n", args[0]);
+            }
         }
     }
 }
@@ -67,6 +83,8 @@ void kernel_main(uint32_t magic, uint32_t addr)
     kdbg(KINFO, "heap_init: initialized at 0x200000, size 16MB\n");
     __asm__("sti");
     
+    pc_speaker_beep(1000, 200);
+
     shell();
 
     kprintf("Kernel ended.");

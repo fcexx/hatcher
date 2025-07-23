@@ -14,5 +14,6 @@ int atoi(const char *str);
 char* strchr(const char *s, int c);
 void trim(char *s);
 void *memmove(void *dest, const void *src, size_t n);
+char **split(const char *str, char delimiter, int *count);
 
 #endif
