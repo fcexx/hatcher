@@ -21,4 +21,6 @@ void gdt_init(void);
 
 void gdt_set_tss_entry(int idx, uint64_t base, uint32_t limit);
 
+void gdt_print_gdt(void);
+
 #endif 

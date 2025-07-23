@@ -1,4 +1,5 @@
 #include <gdt.h>
+#include <debug.h>
 #include <cpu.h>
 
 #define GDT_ENTRIES 7
@@ -88,3 +89,11 @@ void gdt_set_tss_entry(int idx, uint64_t base, uint32_t limit)
     gdt[idx+1].flags_limit = 0;
     gdt[idx+1].base_high   = 0;
 } 
+
+void gdt_print_gdt(void)
+{
+    for (int i = 0; i < GDT_ENTRIES; i++)
+    {
+        kdbg(KINFO, "gdt: entry %d: %08X %08X %08X %08X\n", i, gdt[i].limit_low, gdt[i].base_low, gdt[i].base_mid, gdt[i].access);
+    }
+}

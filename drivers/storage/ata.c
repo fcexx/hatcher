@@ -33,23 +33,22 @@ static int ata_init_drive(uint16_t base, uint8_t drive) {
     
     outb(base + ATA_COMMAND, ATA_CMD_IDENTIFY);
     ata_wait(base);
-    
-    // More robust check for drive presence and readiness
+
     uint8_t status = inb(base + ATA_STATUS);
-    uint32_t timeout = 1000000; // Increased timeout
+    uint32_t timeout = 1000000; //increased timeout
     while ((status & ATA_SR_BSY) && (--timeout != 0)) {
         status = inb(base + ATA_STATUS);
     }
-    if (timeout == 0) return -1; // Timeout while waiting for BSY to clear
+    if (timeout == 0) return -1;
 
     if (ata_check_error(base)) return -1;
 
-    // Check if DRQ is set, indicating data is ready to be read
+    //Check if DRQ is set, indicating data is ready to be read
     timeout = 1000000; // Reset timeout
     while (!((status & ATA_SR_DRQ) || (status & ATA_SR_ERR)) && (--timeout != 0)) {
         status = inb(base + ATA_STATUS);
     }
-    if (timeout == 0 || (status & ATA_SR_ERR)) return -1; // If DRQ not set or error occurred
+    if (timeout == 0 || (status & ATA_SR_ERR)) return -1; // if DRQ not set or error occurred
 
     uint16_t buffer[256];
     for (int i = 0; i < 256; i++) {
@@ -61,29 +60,26 @@ static int ata_init_drive(uint16_t base, uint8_t drive) {
     drives[drive].sectors = *(uint32_t*)&buffer[60];
     drives[drive].size = drives[drive].sectors * 512;
 
-    // Correctly extract model (word 27-46, 40 bytes, swap bytes in each word)
     char model[41] = {0};
     for (int i = 0; i < 20; i++) {
-        model[i*2] = (buffer[27+i] >> 8) & 0xFF; // High byte (first char)
-        model[i*2+1] = buffer[27+i] & 0xFF;     // Low byte (second char)
+        model[i*2] = (buffer[27+i] >> 8) & 0xFF; //high byte (first char)
+        model[i*2+1] = buffer[27+i] & 0xFF;     //low byte (second char)
     }
     model[40] = 0;
     trim(model);
     strncpy(drives[drive].name, model, 40);
     drives[drive].name[40] = 0;
 
-    // Extract serial (word 10-19, 20 bytes, swap bytes in each word)
     char serial[21] = {0};
     for (int i = 0; i < 10; i++) {
-        serial[i*2] = (buffer[10+i] >> 8) & 0xFF; // High byte (first char)
-        serial[i*2+1] = buffer[10+i] & 0xFF;     // Low byte (second char)
+        serial[i*2] = (buffer[10+i] >> 8) & 0xFF; //high byte (first char)
+        serial[i*2+1] = buffer[10+i] & 0xFF;     //low byte (second char)
     }
     serial[20] = 0;
     trim(serial);
     strncpy(drives[drive].serial, serial, 20);
     drives[drive].serial[20] = 0;
 
-    // Vendor: first word of model (up to space or dash)
     char vendor_name[41] = {0};
     int vi = 0;
     for (int i = 0; i < 40 && model[i] != '\0'; i++) {
@@ -91,12 +87,10 @@ static int ata_init_drive(uint16_t base, uint8_t drive) {
         vendor_name[vi++] = model[i];
     }
     vendor_name[vi] = '\0';
-    // Remove trailing spaces from vendor_name
     for (int i = vi - 1; i >= 0 && vendor_name[i] == ' '; i--) {
         vendor_name[i] = '\0';
     }
 
-    // Save serial if needed in struct (not used now)
     strncpy(drives[drive].vendor, vendor_name, 40);
     drives[drive].vendor[40] = 0;
 
@@ -160,7 +154,6 @@ static int ata_identify_device(uint16_t base, uint8_t drive, char* model) {
 
 void ata_init() {
     memset(drives, 0, sizeof(drives));
-    kdbg(KINFO, "ata_init\n");
     if (ata_init_drive(ATA_PRIMARY_BASE, 0) == 0) {
         kdbg(KINFO, "ata 0: %s, ven: %s, ser: %s, sec: %u\n", 
             drives[0].name, drives[0].vendor, drives[0].serial, drives[0].sectors);

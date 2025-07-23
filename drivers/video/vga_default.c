@@ -80,7 +80,7 @@ void scroll_line()
     set_cursor(last);
 }
 
-void	clear_screen()
+void	kclear()
 {
 	uint16_t	offset = 0;
 	while (offset < (MAX_ROWS * MAX_COLS * 2))

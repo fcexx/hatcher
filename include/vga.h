@@ -27,6 +27,7 @@ void write(uint8_t character, uint8_t attribute_byte, uint16_t offset);
 void scroll_line();
 uint16_t get_cursor();
 void set_cursor(uint16_t pos);
+void kclear();
 
 uint8_t get_cursor_x();
 uint8_t get_cursor_y();
