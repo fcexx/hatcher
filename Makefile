@@ -12,7 +12,7 @@ CC := x86_64-elf-gcc-15.1.0
 AS := x86_64-elf-as
 NASM := nasm
 LD := x86_64-elf-ld
-CFLAGS := -ffreestanding  -Wall -Wextra -m64 $(INCLUDE) --std=c99 -Werror=implicit-function-declaration -g -O0
+CFLAGS := -ffreestanding  -Wall -Wextra -m64 $(INCLUDE) --std=c99 -Werror=implicit-function-declaration -g -O0 -w
 LDFLAGS := -T linker.ld -nostdlib --allow-multiple-definition
 
 all: $(ISO_DIR)/boot/kernel.elf grub
@@ -46,9 +46,9 @@ clean:
 	@rm -rf $(OBJ_DIR) $(ISO_DIR)/boot/kernel.elf kernel.iso
 
 run:
-	@qemu-system-x86_64 -cdrom kernel.iso -m 2048M -hda ../hda.img -boot d -audiodev sdl,id=pcspk_audio -machine pcspk-audiodev=pcspk_audio
+	@qemu-system-x86_64 -cdrom kernel.iso -m 2048M -hda ../hda.img -boot d -audiodev sdl,id=pcspk_audio -machine pcspk-audiodev=pcspk_audio -debugcon stdio
 
 debug:
-	@qemu-system-x86_64 -cdrom kernel.iso -m 2048M -hda ../hda.img -boot d -s -S -audiodev sdl,id=pcspk_audio -machine pcspk-audiodev=pcspk_audio
+	@qemu-system-x86_64 -cdrom kernel.iso -m 2048M -hda ../hda.img -boot d -s -S -audiodev sdl,id=pcspk_audio -machine pcspk-audiodev=pcspk_audio -debugcon stdio
 
 .PHONY: all clean grub run 

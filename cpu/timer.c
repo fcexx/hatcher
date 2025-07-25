@@ -3,6 +3,7 @@
 #include <cpu.h>
 #include <string.h>
 #include <vga.h>
+#include <thread.h>
 #include <debug.h>
 #include <pic.h>
 
@@ -41,6 +42,7 @@ void timer_handler() {
 void timer_isr_wrapper(cpu_registers_t* regs) {
 	(void)regs;
 	timer_handler();
+    thread_yield();
     pic_send_eoi(0);
 } 
 

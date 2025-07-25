@@ -45,15 +45,11 @@ void gdt_init(void)
     gdt_set_entry(2, 0, 0xFFFFFFFF, GDT_ACCESS_PRESENT | GDT_ACCESS_RING0 | GDT_ACCESS_DATA | GDT_ACCESS_RW,
                   GDT_FLAG_GRANULARITY);
 
-    // User Data Segment (GDT index 3, selector 0x1B)
     gdt_set_entry(3, 0, 0xFFFFFFFF, GDT_ACCESS_PRESENT | GDT_ACCESS_RING3 | GDT_ACCESS_DATA | GDT_ACCESS_RW,
                   GDT_FLAG_GRANULARITY);
 
-    // User Code Segment (GDT index 4, selector 0x23)
     gdt_set_entry(4, 0, 0xFFFFFFFF, GDT_ACCESS_PRESENT | GDT_ACCESS_RING3 | GDT_ACCESS_CODE | GDT_ACCESS_RW,
                   GDT_FLAG_GRANULARITY | GDT_FLAG_LONGMODE);
-
-    // TSS will be at index 5 (selector 0x28)
 
     __asm__ __volatile__("lgdt %0" : : "m"(gdtr));
 

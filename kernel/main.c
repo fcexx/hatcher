@@ -15,6 +15,7 @@
 #include <pci.h>
 #include <ata.h>
 #include <usb.h>
+#include <thread.h>
 
 extern uint64_t timer_ticks;
 
@@ -55,6 +56,49 @@ void shell(void) {
             }
             else if (strcmp(args[0], "clear") == 0) {
                 kclear();
+            }
+            else if (strcmp(args[0], "lspid") == 0) {
+                if (count == 1)
+                {
+                    for (int i = 0; i < thread_get_count(); ++i) {
+                        thread_t* t = thread_get(i);
+                        char state_str[10];
+                        if (t->state == THREAD_READY) {
+                            strcpy(state_str, "READY");
+                        } else if (t->state == THREAD_RUNNING) {
+                            strcpy(state_str, "RUNNING");
+                        } else if (t->state == THREAD_BLOCKED) {
+                            strcpy(state_str, "BLOCKED");
+                        } else if (t->state == THREAD_TERMINATED) {
+                            strcpy(state_str, "TERMINATED");
+                        }
+                        kprintf("[%d] %s, state: %s\n", t->tid, t->name, state_str);
+                    }
+                }
+                else {
+                    kprintf("<(0C)>Usage: lspid<(07)>\n");
+                }
+            }
+            else if (strcmp(args[0], "unblock") == 0) {
+                if (count == 2) {
+                    int pid = atoi(args[1]);
+                    thread_unblock(pid);
+                }
+                else kprintf("<(0C)>Usage: unblock <pid><(07)>\n");
+            }
+            else if (strcmp(args[0], "stop") == 0) {
+                if (count == 2) {
+                    int pid = atoi(args[1]);
+                    thread_stop(pid);
+                }
+                else kprintf("<(0C)>Usage: stop <pid><(07)>\n");
+            }
+            else if (strcmp(args[0], "block") == 0) {
+                if (count == 2) {
+                    int pid = atoi(args[1]);
+                    thread_block(pid);
+                }
+                else kprintf("<(0C)>Usage: block <pid><(07)>\n");
             }
             else if (strcmp(args[0], "beep") == 0) {
                 if (count > 2)
@@ -141,6 +185,9 @@ void shell(void) {
                     kprintf("<(0C)>Usage: read <lba> OR read -l <bytes> <lba><(07)>\n");
                 }
             }
+            else if (strcmp(args[0], "yield") == 0) {
+                thread_yield();
+            }
             else {
                 kprintf("<(0C)>Incorrect command: %s<(07)>\n", args[0]);
             }
@@ -151,6 +198,30 @@ void shell(void) {
 // Это нужно для стабильности инициализации
 void idle_irq1(cpu_registers_t* regs) {
     (void)inb(0x60);
+}
+
+void test_thread() {
+    int i = 0;
+    while (1) {
+        vga_draw_text("test_thread", 0, 0, 0x70);
+        thread_yield();
+    }
+}
+
+void test_thread2() {
+    int i = 0;
+    while (1) {
+        vga_draw_text("test_thread2", 40, 0, 0x70);
+        thread_yield();
+    }
+}
+
+void test_thread3() {
+    int i = 0;
+    while (1) {
+        vga_draw_text("test_thread3", 80, 0, 0x70);
+        thread_yield();
+    }
 }
 
 void kernel_main(uint32_t magic, uint32_t addr)
@@ -181,18 +252,24 @@ void kernel_main(uint32_t magic, uint32_t addr)
 
     heap_init(0x200000, 0x1000000); // start at 2MB, size 16MB
     kdbg(KINFO, "heap_init: initialized at 0x200000, size 16MB\n");
+
+    thread_init();
+    thread_create(test_thread, "thread1");
+    thread_create(test_thread2, "thread2");
+    thread_create(test_thread3, "thread3");
     __asm__("sti");
-    
+
+
     pc_speaker_beep(400, 100);
     pc_speaker_beep(500, 100);
     pc_speaker_beep(700, 300);
 
-
-    shell();
+    shell(); // shell будет работать в main_thread
 
     kprintf("Kernel ended.");
     pc_speaker_beep(700, 100);
     pc_speaker_beep(500, 100);
     pc_speaker_beep(400, 300);
-    for (;;);
+    __asm__("cli");
+    for (;;) __asm__("hlt");
 }

@@ -80,18 +80,15 @@ int atoi(const char *str) {
     int sign = 1;
     int i = 0;
 
-    // Handle whitespace
     while (str[i] == ' ' || str[i] == '\t' || str[i] == '\n') {
         i++;
     }
 
-    // Handle sign
     if (str[i] == '-' || str[i] == '+') {
         sign = (str[i] == '-') ? -1 : 1;
         i++;
     }
 
-    // Process digits
     while (str[i] >= '0' && str[i] <= '9') {
         result = result * 10 + (str[i] - '0');
         i++;
@@ -116,7 +113,6 @@ char *strchr(const char *s, int c) {
     return (c == 0) ? (char*)s : NULL;
 }
 
-// Реализация memmove
 void *memmove(void *dest, const void *src, size_t n) {
     unsigned char *d = dest;
     const unsigned char *s = src;

@@ -96,7 +96,6 @@ static void keyboard_handler(cpu_registers_t* regs)
 void ps2_init(void) {
     
 }
-
 char kgetch(void)
 {
     char c;

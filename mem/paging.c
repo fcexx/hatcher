@@ -14,7 +14,7 @@ static uint64_t* const pd   = (uint64_t*)pd_table;
 static uint64_t* const pt   = (uint64_t*)pt_table;
 
 void paging_init(void) {
-    for (uint64_t addr = 0x00000; addr < 0x2000000; addr += PAGE_SIZE) { // Расширено до 32MB
+    for (uint64_t addr = 0x00000; addr < 0x2000000; addr += PAGE_SIZE) {
         pt[(addr >> 12) & 0x1FF] = addr | PAGE_PRESENT | PAGE_RW | PAGE_USER;
     }
     //vga!!!!!!!!!!
