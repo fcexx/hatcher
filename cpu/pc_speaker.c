@@ -3,6 +3,7 @@
 #include <port_based.h>
 #include <pc_speaker.h>
 #include <timer.h>
+#include <thread.h>
 
 #define PIT_FREQUENCY 1193180
 

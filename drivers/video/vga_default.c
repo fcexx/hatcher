@@ -2,6 +2,9 @@
 #include <port_based.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <spinlock.h>
+
+static spinlock_t vga_lock = 0;
 
 static void	vga_memcpy(uint8_t *src, uint8_t *dest, int bytes);
 static void	vga_memcpy(uint8_t *src, uint8_t *dest, int bytes)
@@ -19,6 +22,7 @@ static void	vga_memcpy(uint8_t *src, uint8_t *dest, int bytes)
 void kprint(uint8_t *str)
 {
     static uint8_t color = WHITE_ON_BLACK;
+    
     while (*str) {
         if (*str == '<' && *(str+1) == '(' &&
             ((*(str+2) >= '0' && *(str+2) <= '9') || (*(str+2) >= 'A' && *(str+2) <= 'F')) &&
@@ -33,6 +37,7 @@ void kprint(uint8_t *str)
         putchar(*str, color);
         str++;
     }
+    
 }
 
 void	putchar(uint8_t character, uint8_t attribute_byte)
@@ -62,6 +67,7 @@ void	putchar(uint8_t character, uint8_t attribute_byte)
 
 void scroll_line()
 {
+    
     for (uint8_t row = 1; row < MAX_ROWS; row++) {
         for (uint8_t col = 0; col < MAX_COLS; col++) {
             uint16_t from = (row * MAX_COLS + col) * 2;
@@ -78,10 +84,12 @@ void scroll_line()
         vga[last + col * 2 + 1] = WHITE_ON_BLACK;
     }
     set_cursor(last);
+    
 }
 
 void	kclear()
 {
+	
 	uint16_t	offset = 0;
 	while (offset < (MAX_ROWS * MAX_COLS * 2))
 	{
@@ -89,13 +97,16 @@ void	kclear()
 		offset += 2;
 	}
 	set_cursor(0);
+	
 }
 
 void	write(uint8_t character, uint8_t attribute_byte, uint16_t offset)
 {
+	
 	uint8_t *vga = (uint8_t *) VIDEO_ADDRESS;
 	vga[offset] = character;
 	vga[offset + 1] = attribute_byte;
+	
 }
 
 uint16_t		get_cursor()
@@ -109,12 +120,14 @@ uint16_t		get_cursor()
 
 void	set_cursor(uint16_t pos)
 {
+	
 	pos /= 2;
 
 	outb(REG_SCREEN_CTRL, 14);
 	outb(REG_SCREEN_DATA, (uint8_t)(pos >> 8));
 	outb(REG_SCREEN_CTRL, 15);
 	outb(REG_SCREEN_DATA, (uint8_t)(pos & 0xff));
+	
 }
 
 uint8_t get_cursor_x() {
@@ -128,6 +141,7 @@ uint8_t get_cursor_y() {
 }
 
 void set_cursor_xy(uint8_t x, uint8_t y) {
+    
     uint16_t pos;
     
     if (x >= MAX_ROWS) x = MAX_ROWS - 1;
@@ -135,6 +149,7 @@ void set_cursor_xy(uint8_t x, uint8_t y) {
     
     pos = y * MAX_ROWS + x;
     set_cursor(pos);
+    
 }
 
 void disable_cursor()
@@ -163,7 +178,8 @@ void kprint_hex(uint32_t value) {
 }
 void kprintc(uint8_t *str, uint8_t attr)
 {
-    while (*str)
+    
+	while (*str)
 	{
 		if (*str == '\b')
 		{
@@ -176,6 +192,7 @@ void kprintc(uint8_t *str, uint8_t attr)
 		}
 		str++;
 	}
+    
 }
 void int_to_str(int num, char *str);
 void int_to_str(int num, char *str) {
@@ -258,6 +275,7 @@ void kprint_hex_w(uint32_t value) {
 }
 
 void kprintf(const char *fmt, ...) {
+    
     va_list args;
     va_start(args, fmt);
     char buf[256];
@@ -375,6 +393,7 @@ void kprintf(const char *fmt, ...) {
     buf[len] = 0;
     va_end(args);
     kprint((uint8_t*)buf);
+    
 }
 
 void kvprintf(const char *fmt, va_list args) {
@@ -483,7 +502,7 @@ void kvprintf(const char *fmt, va_list args) {
 }
 
 void vga_draw_text(const char *text, int x, int y, uint8_t color) {
-    int offset = y * MAX_COLS + x;
+    int offset = (y * MAX_COLS + x) * 2;
     for (int i = 0; text[i] != '\0'; i++) {
         write(text[i], color, offset + i * 2);
     }

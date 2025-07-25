@@ -2,6 +2,7 @@
 #include <cpu.h>
 #include <port_based.h>
 #include <idt.h>
+#include <thread.h>
 #include <vga.h>
 
 #define KB_BUF_SIZE 128
@@ -100,7 +101,7 @@ char kgetch(void)
 {
     char c;
     idt_register_handler(33, keyboard_handler);
-    while (!keyboard_buffer_pop(&c));
+    while (!keyboard_buffer_pop(&c)) thread_yield();
     key_end = 0;
     return c;
 }

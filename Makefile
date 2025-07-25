@@ -40,15 +40,30 @@ $(ISO_DIR)/boot/kernel.elf: $(OBJ_DIR)/boot/boot.o $(filter-out $(OBJ_DIR)/boot/
 grub:
 	@mkdir -p $(ISO_DIR)/boot/grub
 	@cp grub.cfg $(ISO_DIR)/boot/grub/grub.cfg
-	@grub-mkrescue -o kernel.iso $(ISO_DIR)
+	@echo "Creating empty image, may be use sudo"
+	@dd if=/dev/zero of=kernel.img bs=1M count=64 status=none
+	@parted kernel.img --script mklabel msdos
+	@parted kernel.img --script mkpart primary fat32 2048s 100%
+	@sudo losetup -Pf kernel.img
+	@LOOPDEV=$$(sudo losetup -j kernel.img | cut -d: -f1); \
+	PART=$${LOOPDEV}p1; \
+	sudo mkfs.fat $$PART > /dev/null; \
+	sudo mkdir -p /mnt/hatcher-fat; \
+	sudo mount $$PART /mnt/hatcher-fat; \
+	sudo cp -r $(ISO_DIR)/* /mnt/hatcher-fat/; \
+	sudo grub-install --target=i386-pc --boot-directory=/mnt/hatcher-fat/boot --no-floppy --modules="part_msdos fat" $$LOOPDEV; \
+	sudo umount /mnt/hatcher-fat; \
+	sudo losetup -d $$LOOPDEV; \
+	echo "Ready!"
+	#@grub-mkrescue -o kernel.iso $(ISO_DIR)
 
 clean:
 	@rm -rf $(OBJ_DIR) $(ISO_DIR)/boot/kernel.elf kernel.iso
 
 run:
-	@qemu-system-x86_64 -cdrom kernel.iso -m 2048M -hda ../hda.img -boot d -audiodev sdl,id=pcspk_audio -machine pcspk-audiodev=pcspk_audio -debugcon stdio
+	@qemu-system-x86_64 -drive file=kernel.img,format=raw -drive file=../hda.img,format=raw -m 2048M -boot d -audiodev sdl,id=pcspk_audio -machine pcspk-audiodev=pcspk_audio -debugcon stdio
 
 debug:
-	@qemu-system-x86_64 -cdrom kernel.iso -m 2048M -hda ../hda.img -boot d -s -S -audiodev sdl,id=pcspk_audio -machine pcspk-audiodev=pcspk_audio -debugcon stdio
+	@qemu-system-x86_64 -drive file=kernel.img,format=raw -drive file=../hda.img,format=raw -m 2048M -boot d -s -S -audiodev sdl,id=pcspk_audio -machine pcspk-audiodev=pcspk_audio -debugcon stdio
 
 .PHONY: all clean grub run 

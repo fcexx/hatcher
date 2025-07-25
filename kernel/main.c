@@ -39,10 +39,17 @@ static void hexstr_to_bytes(const char* hex_str, uint8_t* byte_array, size_t max
     }
 }
 
+static int end = 0;
+static int drive_num = 0;
+
 void shell(void) {
-    kprintf("%s %s ring 0 shell\nBSD 3-Clause License\nCopyright (c) 2025, ALoutFER, Michael78Bugaev\n", KERNEL_NAME, KERNEL_VERSION);
+    int j = 0;
+    while (j != 1) {
+        kprintf("\n%s %s ring 0 shell\nBSD 3-Clause License\nCopyright (c) 2025, ALoutFER, Michael78Bugaev\n\n", KERNEL_NAME, KERNEL_VERSION);
+        j = 1;
+    }
     while (1) {
-        kprintf("> ");
+        kprintf("%d:> ", drive_num);
         char *buf = kgets();
         int count = 0;
         char **args = split(buf, ' ', &count);
@@ -50,6 +57,15 @@ void shell(void) {
         {
             if (strcmp(args[0], "exit") == 0) {
                 break;
+            }
+            else if (strcmp(args[0], "disk") == 0) {
+                if (count == 2) {
+                    drive_num = atoi(args[1]);
+                }
+                else if (count == 1) {
+                    kprintf("%d\n", drive_num);
+                }
+                else kprintf("<(0C)>Usage: disk <drive_number><(07)>\n");
             }
             else if (strcmp(args[0], "help") == 0) {
                 kprint("help command\n");
@@ -79,24 +95,30 @@ void shell(void) {
                     kprintf("<(0C)>Usage: lspid<(07)>\n");
                 }
             }
-            else if (strcmp(args[0], "unblock") == 0) {
-                if (count == 2) {
-                    int pid = atoi(args[1]);
-                    thread_unblock(pid);
-                }
-                else kprintf("<(0C)>Usage: unblock <pid><(07)>\n");
-            }
             else if (strcmp(args[0], "stop") == 0) {
                 if (count == 2) {
                     int pid = atoi(args[1]);
-                    thread_stop(pid);
+                    if (pid == 0) kdbg(KERR, "thread_stop: access denied\n");
+                    else if (pid == thread_get_pid("Hatcher shell")) {
+                        kdbg(KWARN, "thread_stop: stopping shell\n");
+                        thread_stop(pid);
+                        end = 1;
+                    }
+                    else {
+                        thread_stop(pid);
+                        kdbg(KINFO, "thread_stop: pid %d stopped\n", pid);
+                    }
                 }
                 else kprintf("<(0C)>Usage: stop <pid><(07)>\n");
             }
             else if (strcmp(args[0], "block") == 0) {
                 if (count == 2) {
                     int pid = atoi(args[1]);
-                    thread_block(pid);
+                    if (pid == 0) kdbg(KERR, "thread_block: access denied\n");
+                    else {
+                        thread_block(pid);
+                        kdbg(KINFO, "thread_block: pid %d blocked\n", pid);
+                    }
                 }
                 else kprintf("<(0C)>Usage: block <pid><(07)>\n");
             }
@@ -120,7 +142,7 @@ void shell(void) {
 
                     hexstr_to_bytes(hex_data_str, buffer, 512);
 
-                    if (ata_write_sector(0, lba, buffer) == 0) {
+                    if (ata_write_sector(drive_num, lba, buffer) == 0) {
                         kprintf("Sector %u written successfully.\n", lba);
                     } else {
                         kprintf("Error writing sector %u.\n", lba);
@@ -145,7 +167,7 @@ void shell(void) {
                         uint32_t sectors_to_read = (size_to_read + 511) / 512;
                         bool read_success = true;
                         for (uint32_t i = 0; i < sectors_to_read; ++i) {
-                            if (ata_read_sector(0, start_lba + i, read_buffer + (i * 512)) != 0) {
+                            if (ata_read_sector(drive_num, start_lba + i, read_buffer + (i * 512)) != 0) {
                                 kprintf("error reading sector %u.\n", start_lba + i);
                                 read_success = false;
                                 break;
@@ -168,7 +190,7 @@ void shell(void) {
                 } else if (count == 2) {
                     uint32_t lba = atoi(args[1]);
                     uint8_t buffer[512];
-                    if (ata_read_sector(0, lba, buffer) == 0) {
+                    if (ata_read_sector(drive_num, lba, buffer) == 0) {
                         kprintf("sector %u (512 bytes):\n", lba);
                         for (int i = 0; i < 512; ++i) {
                             kprintf("%02X ", buffer[i]);
@@ -189,9 +211,10 @@ void shell(void) {
                 thread_yield();
             }
             else {
-                kprintf("<(0C)>Incorrect command: %s<(07)>\n", args[0]);
+                kprintf("<(0C)>%s?<(07)>\n", args[0]);
             }
         }
+        thread_yield();
     }
 }
 
@@ -200,26 +223,10 @@ void idle_irq1(cpu_registers_t* regs) {
     (void)inb(0x60);
 }
 
-void test_thread() {
-    int i = 0;
-    while (1) {
-        vga_draw_text("test_thread", 0, 0, 0x70);
-        thread_yield();
-    }
-}
-
-void test_thread2() {
-    int i = 0;
-    while (1) {
-        vga_draw_text("test_thread2", 40, 0, 0x70);
-        thread_yield();
-    }
-}
-
-void test_thread3() {
-    int i = 0;
-    while (1) {
-        vga_draw_text("test_thread3", 80, 0, 0x70);
+void ui_bar()
+{
+    while (1) {//                                                                                      "
+        vga_draw_text(" Hatcher |                                                    | CPU Usage:    % ", 0, 0, 0x70);
         thread_yield();
     }
 }
@@ -254,9 +261,7 @@ void kernel_main(uint32_t magic, uint32_t addr)
     kdbg(KINFO, "heap_init: initialized at 0x200000, size 16MB\n");
 
     thread_init();
-    thread_create(test_thread, "thread1");
-    thread_create(test_thread2, "thread2");
-    thread_create(test_thread3, "thread3");
+    
     __asm__("sti");
 
 
@@ -264,9 +269,11 @@ void kernel_main(uint32_t magic, uint32_t addr)
     pc_speaker_beep(500, 100);
     pc_speaker_beep(700, 300);
 
-    shell(); // shell будет работать в main_thread
+    thread_create(shell, "Hatcher shell");
 
-    kprintf("Kernel ended.");
+    while (end == 0);
+
+    kdbg(KINFO, "kernel_main: kernel end");
     pc_speaker_beep(700, 100);
     pc_speaker_beep(500, 100);
     pc_speaker_beep(400, 300);

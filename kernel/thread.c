@@ -87,10 +87,13 @@ void thread_schedule() {
             current->state = THREAD_RUNNING;
             prev->state = THREAD_READY;
             context_switch(&prev->context, &current->context);
+            // После возврата из context_switch поток снова активен
+            current->state = THREAD_RUNNING;
             return;
         }
     }
-} 
+    // Если нет READY потоков, остаёмся в текущем
+}
 
 void thread_unblock(int pid) {
     for (int i = 0; i < thread_count; ++i) {
