@@ -1,4 +1,3 @@
-The entix 64-bit hobby kernel.
+Hatcher 64-bit operating system
 
-
-Michael78Bugaev, ALoutFER
+Created by ALoutFER, fcexx.
