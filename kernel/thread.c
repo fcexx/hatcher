@@ -13,10 +13,14 @@ static thread_t* current = NULL;
 
 static thread_t main_thread;
 
+// Объявления внешних переменных для отслеживания переключений потоков
+extern uint32_t timer_ticks;
+
 void thread_init() {
     memset(&main_thread, 0, sizeof(main_thread));
     main_thread.state = THREAD_RUNNING;
     main_thread.tid = 0;
+    main_thread.sleep_until = 0;
     current = &main_thread;
     threads[0] = &main_thread;
     thread_count = 1;
@@ -44,6 +48,7 @@ thread_t* thread_create(void (*entry)(void), const char* name) {
     t->context.r12 = (uint64_t)entry; // entry передаётся через r12
     t->context.rflags = 0x202;
     t->state = THREAD_READY;
+    t->sleep_until = 0;
     t->tid = thread_count;
     strncpy(t->name, name, sizeof(t->name));
     threads[thread_count++] = t;
@@ -77,7 +82,28 @@ void thread_block(int pid) {
     }
 }
 
+void thread_sleep(uint32_t ms) {
+    if (ms == 0) return;
+    
+    // Вычисляем время пробуждения (в тиках таймера)
+    // Таймер работает на частоте 1000 Гц, поэтому 1 мс = 1 тик
+    current->sleep_until = timer_ticks + ms;
+    current->state = THREAD_SLEEPING;
+    
+    // Переключаемся на другой поток
+    thread_yield();
+}
+
 void thread_schedule() {
+    // Сначала проверяем спящие потоки
+    for (int i = 0; i < thread_count; ++i) {
+        if (threads[i] && threads[i]->state == THREAD_SLEEPING) {
+            if (timer_ticks >= threads[i]->sleep_until) {
+                threads[i]->state = THREAD_READY;
+            }
+        }
+    }
+    
     int next = (current->tid + 1) % thread_count;
     for (int i = 0; i < thread_count; ++i) {
         int idx = (next + i) % thread_count;
@@ -85,14 +111,18 @@ void thread_schedule() {
             thread_t* prev = current;
             current = threads[idx];
             current->state = THREAD_RUNNING;
-            prev->state = THREAD_READY;
+            
+            // Не меняем состояние предыдущего потока, если он спит
+            if (prev->state != THREAD_SLEEPING) {
+                prev->state = THREAD_READY;
+            }
+            
             context_switch(&prev->context, &current->context);
             // После возврата из context_switch поток снова активен
             current->state = THREAD_RUNNING;
             return;
         }
     }
-    // Если нет READY потоков, остаёмся в текущем
 }
 
 void thread_unblock(int pid) {

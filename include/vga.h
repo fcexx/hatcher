@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 #include <stdarg.h>
+#include <stddef.h>
+#include <spinlock.h>
 
 #define VIDEO_ADDRESS 0xb8000
 #define MAX_ROWS 25
@@ -14,6 +16,8 @@
 #define REG_SCREEN_DATA 0x3d5
 #define VGA_OFFSET_LOW 0x0f
 #define VGA_OFFSET_HIGH 0x0e
+
+extern spinlock_t vga_lock;
 
 void kprint(uint8_t *str);
 void kprintc(uint8_t *str, uint8_t attr);
@@ -43,4 +47,5 @@ void kvprintf(const char *fmt, va_list args);
 
 void vga_draw_text(const char *text, int x, int y, uint8_t color);
 
+int snprintf(char *buf, size_t size, const char *fmt, ...);
 #endif

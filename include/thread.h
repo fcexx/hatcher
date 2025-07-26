@@ -7,7 +7,8 @@ typedef enum {
     THREAD_READY,
     THREAD_RUNNING,
     THREAD_BLOCKED,
-    THREAD_TERMINATED
+    THREAD_TERMINATED,
+    THREAD_SLEEPING
 } thread_state_t;
 
 typedef struct thread {
@@ -17,6 +18,7 @@ typedef struct thread {
     struct thread* next;
     uint64_t tid;
     char name[32];
+    uint32_t sleep_until;  // Время пробуждения (в тиках таймера)
 } thread_t;
 
 void thread_init();
@@ -31,5 +33,6 @@ void thread_block(int pid);
 void thread_unblock(int pid);
 int thread_get_state(int pid);
 int thread_get_count();
+void thread_sleep(uint32_t ms);
 
 #endif // THREAD_H 

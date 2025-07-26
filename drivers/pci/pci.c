@@ -4,7 +4,7 @@
 #include <debug.h>
 #include <usb.h>
 
-static uint32_t pci_config_read32(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset) {
+uint32_t pci_config_read32(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset) {
     uint32_t address = (1U << 31)
         | ((uint32_t)bus << 16)
         | ((uint32_t)device << 11)
@@ -14,12 +14,12 @@ static uint32_t pci_config_read32(uint8_t bus, uint8_t device, uint8_t function,
     return inl(PCI_CONFIG_DATA);
 }
 
-static uint16_t pci_config_read16(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset) {
+uint16_t pci_config_read16(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset) {
     uint32_t value = pci_config_read32(bus, device, function, offset);
     return (value >> ((offset & 2) * 8)) & 0xFFFF;
 }
 
-static uint8_t pci_config_read8(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset) {
+uint8_t pci_config_read8(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset) {
     uint32_t value = pci_config_read32(bus, device, function, offset);
     return (value >> ((offset & 3) * 8)) & 0xFF;
 }

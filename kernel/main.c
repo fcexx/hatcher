@@ -13,11 +13,13 @@
 #include <timer.h>
 #include <pc_speaker.h>
 #include <pci.h>
+#include <gpu.h>
 #include <ata.h>
 #include <usb.h>
 #include <thread.h>
+#include <spinlock.h>
 
-extern uint64_t timer_ticks;
+extern uint32_t timer_ticks;
 
 //dec: 0123456789
 //hex: 0123456789ABCDEF
@@ -42,12 +44,83 @@ static void hexstr_to_bytes(const char* hex_str, uint8_t* byte_array, size_t max
 static int end = 0;
 static int drive_num = 0;
 
-void shell(void) {
-    int j = 0;
-    while (j != 1) {
-        kprintf("\n%s %s ring 0 shell\nBSD 3-Clause License\nCopyright (c) 2025, ALoutFER, Michael78Bugaev\n\n", KERNEL_NAME, KERNEL_VERSION);
-        j = 1;
+static uint32_t user_time = 0; //Время пользовательских потоков
+static uint32_t system_time = 0; //Время системных операций
+static uint32_t irq_time = 0; //Время обработки прерываний
+static uint32_t idle_time = 0; //Время простоя
+static uint32_t last_cpu_update = 0;
+static uint64_t sys_seconds = 0;
+static uint64_t sys_minutes = 0;
+static uint64_t sys_hours = 0;
+
+static int calculate_cpu_usage() {
+    uint32_t current_ticks = timer_ticks;
+    uint32_t delta_ticks = current_ticks - last_cpu_update;
+    
+    if (delta_ticks == 0) return 0;
+ 
+    thread_t* current = thread_current();
+    
+    if (current && strcmp(current->name, "idle") == 0) {
+        idle_time += delta_ticks;
+    } else if (current && strcmp(current->name, "Hatcher shell") == 0) {
+        user_time += delta_ticks;
+    } else if (current && strcmp(current->name, "systime") == 0) {
+        system_time += delta_ticks;
+    } else {
+        system_time += delta_ticks;
     }
+    
+    uint32_t total_active_time = user_time + system_time + irq_time;
+    
+    uint32_t total_cpu_time = total_active_time + idle_time;
+    
+    int cpu_percent = 0;
+    if (total_cpu_time > 0) {
+        cpu_percent = (total_active_time * 100) / total_cpu_time;
+    }
+    
+    if (total_cpu_time > 100) {
+        user_time = 0;
+        system_time = 0;
+        irq_time = 0;
+        idle_time = 0;
+    }
+    
+    last_cpu_update = current_ticks;
+    return cpu_percent;
+}
+
+void sys_time() {
+    char time_str[10];
+    while (1) {
+        snprintf(time_str, sizeof(time_str), "%02d:%02d:%02d", sys_hours, sys_minutes, sys_seconds);
+        vga_draw_text(time_str, 12, 0, 0x70);
+        thread_yield();
+    }
+}
+
+void calc_time()
+{
+    while (1) {
+        sys_seconds++;
+        if (sys_seconds == 60) {
+            sys_seconds = 0;
+            sys_minutes++;
+        }
+        if (sys_minutes == 60) {
+            sys_minutes = 0;
+            sys_hours++;
+        }
+        if (sys_hours == 24) {
+            sys_hours = 0;
+        }
+        thread_sleep(1000);
+    }
+}
+
+void shell(void) {
+    kprintf("\n\n");
     while (1) {
         kprintf("%d:> ", drive_num);
         char *buf = kgets();
@@ -56,7 +129,8 @@ void shell(void) {
         if (count > 0)
         {
             if (strcmp(args[0], "exit") == 0) {
-                break;
+                end = 1;
+                //break;
             }
             else if (strcmp(args[0], "disk") == 0) {
                 if (count == 2) {
@@ -69,6 +143,9 @@ void shell(void) {
             }
             else if (strcmp(args[0], "help") == 0) {
                 kprint("help command\n");
+            }
+            else if (strcmp(args[0], "info") == 0) {
+                kprintf("%s %s Operating System\nBSD 3-Clause License\nCopyright (c) 2025, ALoutFER, fcexx\n", KERNEL_NAME, KERNEL_VERSION);
             }
             else if (strcmp(args[0], "clear") == 0) {
                 kclear();
@@ -87,12 +164,29 @@ void shell(void) {
                             strcpy(state_str, "BLOCKED");
                         } else if (t->state == THREAD_TERMINATED) {
                             strcpy(state_str, "TERMINATED");
+                        } else if (t->state == THREAD_SLEEPING) {
+                            strcpy(state_str, "SLEEPING");
                         }
-                        kprintf("[%d] %s, state: %s\n", t->tid, t->name, state_str);
+                        kprintf("[%d] %s, state: %s", t->tid, t->name, state_str);
+                        if (t->state == THREAD_SLEEPING) {
+                            kprintf(" (wake at tick %u)", t->sleep_until);
+                        }
+                        kprintf("\n");
                     }
                 }
                 else {
                     kprintf("<(0C)>Usage: lspid<(07)>\n");
+                }
+            }
+            else if (strcmp(args[0], "sleep") == 0) {
+                if (count == 2) {
+                    uint32_t ms = atoi(args[1]);
+                    kprintf("Sleeping for %u ms...\n", ms);
+                    thread_sleep(ms);
+                    kprintf("Woke up after %u ms!\n", ms);
+                }
+                else {
+                    kprintf("<(0C)>Usage: sleep <milliseconds><(07)>\n");
                 }
             }
             else if (strcmp(args[0], "stop") == 0) {
@@ -218,15 +312,21 @@ void shell(void) {
     }
 }
 
-// Это нужно для стабильности инициализации
 void idle_irq1(cpu_registers_t* regs) {
     (void)inb(0x60);
 }
 
 void ui_bar()
 {
-    while (1) {//                                                                                      "
+    while (1) {
         vga_draw_text(" Hatcher |                                                    | CPU Usage:    % ", 0, 0, 0x70);
+
+        int cpu_percent = calculate_cpu_usage();
+        kprintci_vidmem(cpu_percent, 0x70, 0 * MAX_ROWS + 75 * 2);
+        
+        
+        thread_sleep(5);
+        
         thread_yield();
     }
 }
@@ -260,7 +360,21 @@ void kernel_main(uint32_t magic, uint32_t addr)
     heap_init(0x200000, 0x1000000); // start at 2MB, size 16MB
     kdbg(KINFO, "heap_init: initialized at 0x200000, size 16MB\n");
 
+    gpu_info_t gpu;
+    if (gpu_init(&gpu) == 0) {
+        gpu_print_info(&gpu);
+        uint32_t reg = gpu_mmio_read32(gpu.mmio_base, 0x0);
+        gpu_mmio_write32(gpu.mmio_base, 0x4, 0x12345678);
+    }
+    else {
+        kdbg(KWARN, "gpu_get_info: failed to get gpu info\n");
+    }
+
     thread_init();
+    thread_create(ui_bar, "hatchui");
+    thread_create(calc_time, "calctime");
+    thread_create(sys_time, "systime");
+    thread_create(shell, "Hatcher shell");
     
     __asm__("sti");
 
@@ -269,11 +383,13 @@ void kernel_main(uint32_t magic, uint32_t addr)
     pc_speaker_beep(500, 100);
     pc_speaker_beep(700, 300);
 
-    thread_create(shell, "Hatcher shell");
 
-    while (end == 0);
+    while (end != 1);
+    for (int i = 0; i < thread_get_count(); i++) {
+        thread_stop(thread_get(i)->tid);
+    }
 
-    kdbg(KINFO, "kernel_main: kernel end");
+    kdbg(KWARN, "kernel_main: kernel end");
     pc_speaker_beep(700, 100);
     pc_speaker_beep(500, 100);
     pc_speaker_beep(400, 300);

@@ -3,8 +3,9 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <spinlock.h>
+#include <stddef.h>
 
-static spinlock_t vga_lock = 0;
+spinlock_t vga_lock = 0;
 
 static void	vga_memcpy(uint8_t *src, uint8_t *dest, int bytes);
 static void	vga_memcpy(uint8_t *src, uint8_t *dest, int bytes)
@@ -21,6 +22,7 @@ static void	vga_memcpy(uint8_t *src, uint8_t *dest, int bytes)
 
 void kprint(uint8_t *str)
 {
+    spin_lock(&vga_lock);
     static uint8_t color = WHITE_ON_BLACK;
     
     while (*str) {
@@ -37,7 +39,7 @@ void kprint(uint8_t *str)
         putchar(*str, color);
         str++;
     }
-    
+    spin_unlock(&vga_lock);
 }
 
 void	putchar(uint8_t character, uint8_t attribute_byte)
@@ -89,7 +91,7 @@ void scroll_line()
 
 void	kclear()
 {
-	
+    
 	uint16_t	offset = 0;
 	while (offset < (MAX_ROWS * MAX_COLS * 2))
 	{
@@ -252,7 +254,13 @@ void kprinti_vidmem(int number, int offset) {
 }
 
 void kprintci_vidmem(int number, uint8_t attr, int offset) {
-    
+    char buffer[12];
+    int_to_str(number, buffer);
+    volatile char *video = (volatile char *)0xB8000;
+    for (int i = 0; buffer[i] != '\0'; i++) {
+        video[offset + i * 2] = buffer[i];
+        video[offset + i * 2 + 1] = attr;
+    }
 }
 void kprint_hex_w(uint32_t value) {
     char hex_str[5];
@@ -506,4 +514,86 @@ void vga_draw_text(const char *text, int x, int y, uint8_t color) {
     for (int i = 0; text[i] != '\0'; i++) {
         write(text[i], color, offset + i * 2);
     }
+}
+
+int snprintf(char *buf, size_t size, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    size_t len = 0;
+    for (; *fmt && len + 1 < size; ++fmt) {
+        if (*fmt != '%') {
+            buf[len++] = *fmt;
+            continue;
+        }
+        ++fmt;
+        int width = 0, zero_pad = 0;
+        if (*fmt == '0') { zero_pad = 1; ++fmt; }
+        while (*fmt >= '0' && *fmt <= '9') {
+            width = width * 10 + (*fmt - '0');
+            ++fmt;
+        }
+        if (*fmt == 's') {
+            const char *s = va_arg(args, const char*);
+            int slen = 0;
+            while (s[slen]) slen++;
+            int pad = width - slen;
+            while (pad-- > 0 && len + 1 < size) buf[len++] = zero_pad ? '0' : ' ';
+            while (*s && len + 1 < size) buf[len++] = *s++;
+        } else if (*fmt == 'd') {
+            int n = va_arg(args, int);
+            char tmp[16];
+            int i = 0, neg = 0;
+            unsigned int un = n;
+            if (n < 0) { neg = 1; un = -n; }
+            do { tmp[i++] = '0' + (un % 10); un /= 10; } while (un && i < 15);
+            if (neg && len + 1 < size) tmp[i++] = '-';
+            int pad = width - i;
+            while (pad-- > 0 && len + 1 < size) buf[len++] = zero_pad ? '0' : ' ';
+            while (i-- && len + 1 < size) buf[len++] = tmp[i];
+        } else if (*fmt == 'u') {
+            unsigned int n = va_arg(args, unsigned int);
+            char tmp[16];
+            int i = 0;
+            do { tmp[i++] = '0' + (n % 10); n /= 10; } while (n && i < 15);
+            int pad = width - i;
+            while (pad-- > 0 && len + 1 < size) buf[len++] = zero_pad ? '0' : ' ';
+            while (i-- && len + 1 < size) buf[len++] = tmp[i];
+        } else if (*fmt == 'x' || *fmt == 'X') {
+            unsigned int n = va_arg(args, unsigned int);
+            char tmp[16];
+            int i = 0;
+            do {
+                int d = n & 0xF;
+                tmp[i++] = (d < 10) ? ('0' + d) : ((*fmt == 'X') ? ('A' + d - 10) : ('a' + d - 10));
+                n >>= 4;
+            } while (n && i < 15);
+            int pad = width - i;
+            while (pad-- > 0 && len + 1 < size) buf[len++] = zero_pad ? '0' : ' ';
+            while (i-- && len + 1 < size) buf[len++] = tmp[i];
+        } else if (*fmt == 'p') {
+            unsigned long n = (unsigned long)va_arg(args, void*);
+            char tmp[2 + sizeof(unsigned long) * 2 + 1];
+            int i = 0;
+            buf[len++] = '0';
+            if (len + 1 < size) buf[len++] = 'x';
+            do {
+                int d = n & 0xF;
+                tmp[i++] = (d < 10) ? ('0' + d) : ('a' + d - 10);
+                n >>= 4;
+            } while (n && i < (int)sizeof(unsigned long) * 2);
+            int pad = width - i - 2; // 0x
+            while (pad-- > 0 && len + 1 < size) buf[len++] = zero_pad ? '0' : ' ';
+            while (i-- && len + 1 < size) buf[len++] = tmp[i];
+        } else if (*fmt == 'c') {
+            buf[len++] = (char)va_arg(args, int);
+        } else if (*fmt == '%') {
+            buf[len++] = '%';
+        } else {
+            buf[len++] = '%';
+            if (len + 1 < size) buf[len++] = *fmt;
+        }
+    }
+    buf[len] = 0;
+    va_end(args);
+    return len;
 }
