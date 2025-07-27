@@ -13,7 +13,10 @@ typedef enum {
 
 typedef struct thread {
     context_t context;
-    uint64_t kernel_stack;
+    uint64_t kernel_stack; // user mode (ring 3)
+    uint64_t user_stack;   // user mode (ring 3)
+    uint64_t user_rip;     // user mode (ring 3)
+    uint8_t ring;          // user mode (ring 3)
     thread_state_t state;
     struct thread* next;
     uint64_t tid;

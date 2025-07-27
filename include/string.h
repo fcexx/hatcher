@@ -15,5 +15,9 @@ char* strchr(const char *s, int c);
 void trim(char *s);
 void *memmove(void *dest, const void *src, size_t n);
 char **split(const char *str, char delimiter, int *count);
+int memcmp(const void *s1, const void *s2, size_t n);
+int toupper(int c);
+char *strtok(char *str, const char *delim);
+char *strstr(const char *haystack, const char *needle);
 
 #endif

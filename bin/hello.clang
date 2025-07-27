@@ -1,0 +1,25 @@
+#include <stdint.h>
+
+void _start(void) {
+    // Syscall 0 - test call
+    __asm__ volatile (
+        "mov $0, %%rax\n"
+        "int $0x80\n"
+        : : : "rax"
+    );
+    
+    // Syscall 1 - another test call
+    __asm__ volatile (
+        "mov $1, %%rax\n"
+        "int $0x80\n"
+        : : : "rax"
+    );
+    
+    // Exit with code 0
+    __asm__ volatile (
+        "mov $60, %%rax\n"
+        "mov $0, %%rdi\n"
+        "int $0x80\n"
+        : : : "rax", "rdi"
+    );
+} 

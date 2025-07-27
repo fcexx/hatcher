@@ -39,6 +39,10 @@ $(ISO_DIR)/boot/kernel.elf: $(OBJ_DIR)/boot/boot.o $(filter-out $(OBJ_DIR)/boot/
 
 grub:
 	@mkdir -p $(ISO_DIR)/boot/grub
+	@mkdir -p $(ISO_DIR)/bin
+	@mkdir -p $(ISO_DIR)/logs
+	@mkdir -p $(ISO_DIR)/libs
+
 	@cp grub.cfg $(ISO_DIR)/boot/grub/grub.cfg
 	@echo "Creating empty image, may be use sudo"
 	@dd if=/dev/zero of=hatcher.img bs=1M count=64 status=none
@@ -47,7 +51,7 @@ grub:
 	@sudo losetup -Pf hatcher.img
 	@LOOPDEV=$$(sudo losetup -j hatcher.img | cut -d: -f1); \
 	PART=$${LOOPDEV}p1; \
-	sudo mkfs.fat $$PART > /dev/null; \
+	sudo mkfs.fat -F 32 $$PART > /dev/null; \
 	sudo mkdir -p /mnt/hatcher-fat; \
 	sudo mount $$PART /mnt/hatcher-fat; \
 	sudo cp -r $(ISO_DIR)/* /mnt/hatcher-fat/; \

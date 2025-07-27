@@ -61,6 +61,17 @@ void	putchar(uint8_t character, uint8_t attribute_byte)
     }
 	else 
 	{
+		// Проверяем, достигли ли мы конца строки (80 символов)
+		uint16_t current_x = (offset / 2) % MAX_COLS;
+		if (current_x >= MAX_COLS - 1) {
+			// Переносим на новую строку
+			if ((offset / 2 / MAX_COLS) == (MAX_ROWS - 1)) 
+				scroll_line();
+			else
+				set_cursor((offset - offset % (MAX_COLS*2)) + MAX_COLS*2);
+			offset = get_cursor(); // Обновляем offset после переноса
+		}
+		
 		if (offset == (MAX_COLS * MAX_ROWS * 2)) scroll_line();
 		write(character, attribute_byte, offset);
 		set_cursor(offset+2);
@@ -134,23 +145,23 @@ void	set_cursor(uint16_t pos)
 
 uint8_t get_cursor_x() {
     uint16_t pos = get_cursor();
-    return pos % 80;
+    return (pos / 2) % MAX_COLS;
 }
 
 uint8_t get_cursor_y() {
     uint16_t pos = get_cursor();
-    return pos / 80;
+    return (pos / 2) / MAX_COLS;
 }
 
 void set_cursor_xy(uint8_t x, uint8_t y) {
     
     uint16_t pos;
     
-    if (x >= MAX_ROWS) x = MAX_ROWS - 1;
-    if (y >= MAX_COLS) y = MAX_COLS - 1;
+    if (x >= MAX_COLS) x = MAX_COLS - 1;
+    if (y >= MAX_ROWS) y = MAX_ROWS - 1;
     
-    pos = y * MAX_ROWS + x;
-    set_cursor(pos);
+    pos = y * MAX_COLS + x;
+    set_cursor(pos * 2);
     
 }
 

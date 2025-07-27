@@ -1,0 +1,4 @@
+# simple hatcher 64-bit shell script
+echo "Hatcher 64-bit Operating System"
+echo "Copyright (c) ALoutFER, fcexx"
+sh

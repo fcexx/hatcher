@@ -17,6 +17,22 @@ void memset(void *s, int c, size_t n)
         *p++ = c;
 }
 
+int memcmp(const void *s1, const void *s2, size_t n)
+{
+    const char *p1 = s1;
+    const char *p2 = s2;
+    while (n--)
+        if (*p1++ != *p2++) return *p1 - *p2;
+    return 0;
+}
+
+int toupper(int c)
+{
+    if (c >= 'a' && c <= 'z')
+        return c - 'a' + 'A';
+    return c;
+}
+
 int strcmp(const char *s1, const char *s2)
 {
     while (*s1 && *s1 == *s2) {
@@ -148,4 +164,66 @@ char **split(const char *str, char delimiter, int *count) {
 
     *count = n;
     return result;
+}
+
+char *strtok(char *str, const char *delim) {
+    static char *last = NULL;
+    
+    if (str != NULL) {
+        last = str;
+    }
+    
+    if (last == NULL) {
+        return NULL;
+    }
+    
+    // Пропускаем разделители в начале
+    while (*last && strchr(delim, *last) != NULL) {
+        last++;
+    }
+    
+    if (*last == '\0') {
+        last = NULL;
+        return NULL;
+    }
+    
+    char *token = last;
+    
+    // Ищем следующий разделитель
+    while (*last && strchr(delim, *last) == NULL) {
+        last++;
+    }
+    
+    if (*last != '\0') {
+        *last = '\0';
+        last++;
+    } else {
+        last = NULL;
+    }
+    
+    return token;
+}
+
+char *strstr(const char *haystack, const char *needle) {
+    if (*needle == '\0') {
+        return (char *)haystack;
+    }
+    
+    while (*haystack) {
+        const char *h = haystack;
+        const char *n = needle;
+        
+        while (*h && *n && *h == *n) {
+            h++;
+            n++;
+        }
+        
+        if (*n == '\0') {
+            return (char *)haystack;
+        }
+        
+        haystack++;
+    }
+    
+    return NULL;
 }

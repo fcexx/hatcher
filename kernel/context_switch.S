@@ -25,4 +25,4 @@ context_switch:
     pushq 0x88(%rsi)
     popfq
     // my favorite 'ret'
-    ret 
+    ret
