@@ -331,7 +331,7 @@ int sh_exec_single(const char *cmd) {
         }
     }
     else if (strcmp(args[0], "info") == 0) {
-        kprintf("%s %s Operating System\nBSD 3-Clause License\nCopyright (c) 2025, ALoutFER, fcexx\n", KERNEL_NAME, KERNEL_VERSION);
+        kprintf("%s %s Operating System\nBSD 3-Clause License\nCopyright (c) 2025 fcexx\n", KERNEL_NAME, KERNEL_VERSION);
         status = 0;
     }
     else if (strcmp(args[0], "clear") == 0) {
